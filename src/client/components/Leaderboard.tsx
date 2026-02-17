@@ -49,7 +49,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
           <ChevronLeft className="text-slate-400" />
         </button>
         <div className="text-center w-full">
-          <h1 className="text-lg md:text-xl font-outfit font-black text-white tracking-tighter">HALL OF LOGIC</h1>
+          <h1 className="text-lg md:text-xl font-outfit font-black text-white tracking-tighter">HALL OF LOGIK</h1>
         </div>
       </header>
 
@@ -92,7 +92,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
             <div className="text-center py-10">
               <div className="text-indigo-400/50 font-outfit font-bold italic text-sm mb-2">THE ARCHIVES ARE VACANT...</div>
               <div className="text-slate-500 text-[10px] uppercase font-black tracking-widest leading-relaxed">
-                THE HALL OF LOGIC AWAITS<br />ITS FIRST ARCHITECT.
+                THE HALL OF LOGIK AWAITS<br />ITS FIRST ARCHITECT.
               </div>
             </div>
           )}

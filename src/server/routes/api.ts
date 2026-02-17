@@ -3,8 +3,6 @@ import { context, redis, reddit } from '@devvit/web/server';
 import type {
   CreatePuzzleRequest,
   CreatePuzzleResponse,
-  DecrementResponse,
-  IncrementResponse,
   InitResponse,
   UpdateStatsRequest,
   StatsResponse,
@@ -31,8 +29,6 @@ const DIFFICULTY_LABELS = {
 api.get('/init', async (c) => {
   const { postId, username } = context;
 
-  console.log("postID", postId)
-  console.log("username", username)
   if (!postId) {
     console.error('API Init Error: postId not found in devvit context');
     return c.json<ErrorResponse>(
@@ -45,10 +41,7 @@ api.get('/init', async (c) => {
   }
 
   try {
-    const [count, puzzleData] = await Promise.all([
-      redis.get('count'),
-      redis.get(`puzzle:${postId}`),
-    ]);
+    const puzzleData = await redis.get(`puzzle:${postId}`);
 
     // Fetch stats if puzzle exists
     let stats;
@@ -76,13 +69,11 @@ api.get('/init', async (c) => {
     return c.json<InitResponse>({
       type: 'init',
       postId: postId,
-      count: count ? parseInt(count) : 0,
       username: username ?? 'anonymous',
       puzzle: puzzleData ? JSON.parse(puzzleData) : undefined,
       stats,
     });
   } catch (error) {
-    console.error(`API Init Error for post ${postId}:`, error);
     let errorMessage = 'Unknown error during initialization';
     if (error instanceof Error) {
       errorMessage = `Initialization failed: ${error.message}`;
@@ -94,46 +85,6 @@ api.get('/init', async (c) => {
   }
 });
 
-
-api.post('/increment', async (c) => {
-  const { postId } = context;
-  if (!postId) {
-    return c.json<ErrorResponse>(
-      {
-        status: 'error',
-        message: 'postId is required',
-      },
-      400
-    );
-  }
-
-  const count = await redis.incrBy('count', 1);
-  return c.json<IncrementResponse>({
-    count,
-    postId,
-    type: 'increment',
-  });
-});
-
-api.post('/decrement', async (c) => {
-  const { postId } = context;
-  if (!postId) {
-    return c.json<ErrorResponse>(
-      {
-        status: 'error',
-        message: 'postId is required',
-      },
-      400
-    );
-  }
-
-  const count = await redis.incrBy('count', -1);
-  return c.json<DecrementResponse>({
-    count,
-    postId,
-    type: 'decrement',
-  });
-});
 
 api.post('/create-puzzle', async (c) => {
   try {
@@ -158,10 +109,18 @@ api.post('/create-puzzle', async (c) => {
     // We prefix with 'puzzle:' to avoid collisions with other data
     await redis.set(`puzzle:${post.id}`, JSON.stringify(puzzle));
 
+    // 3. Add instructions comment
+    await reddit.submitComment({
+      id: post.id,
+      text: `Welcome to **Symbologik**! 🧩\n\n**How to Play:**\n1. Analyze the **Clues** to deduce the hidden numerical value of each symbol.\n2. Apply those values to the **Challenge Matrix**.\n3. Enter the final result to stabilize the matrix!\n\n**Scoring Warning:**\n⚠️ Every **failed attempt** reduces your potential points for this challenge. Precision is key!\n\nGood luck, Architect.`,
+    });
+
+
     return c.json<CreatePuzzleResponse>({
       postId: post.id,
       url: `https://reddit.com/r/${subredditName}/comments/${post.id}`,
     });
+
   } catch (error) {
     console.error('Create Puzzle Error:', error);
     return c.json<ErrorResponse>(

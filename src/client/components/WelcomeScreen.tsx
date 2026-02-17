@@ -16,7 +16,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onOpenLeaderboard
 }) => {
   return (
-    <div className="h-full max-h-[600px] w-full max-w-[800px] mx-auto flex flex-col items-center justify-between px-4 py-4 gap-6">
+    <div className="h-full max-h-[600px] w-full max-w-[800px] mx-auto flex flex-col items-center justify-between px-4 py-6 gap-6">
       <div className="flex flex-col text-center space-y-4">
         <div className="flex justify-center gap-6 mb-2">
           <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '0s' }}>🔥</span>

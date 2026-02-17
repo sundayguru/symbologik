@@ -169,7 +169,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({
         {currentStats && currentStats.userSolved > 0 && (
           <div className="flex items-center justify-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl animate-pulse">
             <Trophy className="text-emerald-400" size={20} />
-            <span className="text-sm font-outfit font-bold text-emerald-300">You Solved It!</span>
+            <span className="text-sm font-outfit font-bold text-emerald-300">You Balanced The Matrix!</span>
           </div>
         )}
 

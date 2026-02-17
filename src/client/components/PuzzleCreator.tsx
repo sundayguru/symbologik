@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { context, navigateTo } from '@devvit/web/client';
 import { Puzzle, Equation, EquationPart } from '../types';
-import { Plus, Send, Trash, X } from 'lucide-react';
+import { Loader, Plus, Send, Trash, X } from 'lucide-react';
 
 
 import { getEmojiName } from '../utils/emojiMapping';
@@ -24,6 +24,7 @@ interface PuzzleCreatorProps {
 const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
   const [puzzleName, setPuzzleName] = useState<string>('');
   const [difficulty, setDifficulty] = useState<number>(3);
+  const [isPosting, setIsPosting] = useState<boolean>(false);
   const [symbols, setSymbols] = useState<Record<string, string>>({
     apple: '🍎',
     star: '⭐',
@@ -233,21 +234,15 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
 
     try {
       if (onCreate) {
+        setIsPosting(true);
         const result = await onCreate(customPuzzle);
+        setIsPosting(false);
         if (result && result.url) {
           navigateTo(result.url);
         }
-      } else {
-        // Fallback for local storage if onCreate is not provided
-        const saved = localStorage.getItem('symbologic_crafts');
-        const crafts = saved ? JSON.parse(saved) : [];
-        crafts.unshift(customPuzzle);
-        localStorage.setItem('symbologic_crafts', JSON.stringify(crafts));
-        console.log('Saved to local storage:', customPuzzle);
       }
     } catch (error) {
       console.error('Failed to create puzzle:', error);
-      alert('Failed to post puzzle. Please try again.');
     }
   };
 
@@ -340,7 +335,7 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
 
         <div className="space-y-2">
           <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">DIFFICULTY RANKING</h3>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {DIFFICULTIES.map(d => (
               <button
                 key={d.val}
@@ -355,7 +350,7 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
                     setSymbols(newSyms);
                   }
                 }}
-                className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border ${difficulty === d.val
+                className={`flex-1 py-3 px-2 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border ${difficulty === d.val
                   ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/20'
                   : 'bg-slate-800 border-white/5 text-slate-500 hover:border-white/20'
                   }`}
@@ -469,11 +464,11 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
       <div className="fixed bottom-0 left-0 right-0 p-6 glass border-t border-white/10 z-[70]">
         <button
           onClick={handleStart}
-          disabled={!answer || clues.length === 0}
+          disabled={!answer || clues.length === 0 || isPosting}
           className="w-full max-w-2xl mx-auto py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-600/30 active:scale-95 text-lg flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          GENERATE & POST
-          <Send className="text-white" />
+          {isPosting ? 'POSTING...' : 'GENERATE & POST'}
+          {isPosting ? <Loader className="text-white animate-spin" /> : <Send className="text-white" />}
         </button>
       </div>
     </div>
