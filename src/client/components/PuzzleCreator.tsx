@@ -39,8 +39,18 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
   const [answer, setAnswer] = useState<string>('10');
   const [explanation, setExplanation] = useState<string>('Calculated by the architect.');
 
+  const getSymbolLimit = (diff: number) => {
+    if (diff === 1) return 2;
+    if (diff <= 3) return 3;
+    return 5;
+  };
+
+  const MAX_CLUES = 4;
+
   const addClue = () => {
-    setClues([...clues, { parts: [{ type: 'symbol', value: 'sym1' }], result: 0 }]);
+    if (clues.length < MAX_CLUES) {
+      setClues([...clues, { parts: [{ type: 'symbol', value: 'sym1' }], result: 0 }]);
+    }
   };
 
   const removeClue = (index: number) => {
@@ -57,8 +67,10 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
     const defaultVal = partType === 'symbol' ? Object.keys(symbols)[0] : partType === 'operator' ? '+' : 1;
     if (eqType === 'clue') {
       const newClues = [...clues];
-      newClues[index].parts.push({ type: partType, value: defaultVal });
-      setClues(newClues);
+      if (newClues[index]) {
+        newClues[index].parts.push({ type: partType, value: defaultVal });
+        setClues(newClues);
+      }
     } else {
       setTarget({ ...target, parts: [...target.parts, { type: partType, value: defaultVal }] });
     }
@@ -67,8 +79,10 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
   const updatePart = (eqType: 'clue' | 'target', eqIdx: number, partIdx: number, val: string | number) => {
     if (eqType === 'clue') {
       const newClues = [...clues];
-      newClues[eqIdx].parts[partIdx].value = val;
-      setClues(newClues);
+      if (newClues[eqIdx] && newClues[eqIdx].parts[partIdx]) {
+        newClues[eqIdx].parts[partIdx].value = val;
+        setClues(newClues);
+      }
     } else {
       const newParts = [...target.parts];
       newParts[partIdx].value = val;
@@ -79,8 +93,10 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
   const removePart = (eqType: 'clue' | 'target', eqIdx: number, partIdx: number) => {
     if (eqType === 'clue') {
       const newClues = [...clues];
-      newClues[eqIdx].parts = newClues[eqIdx].parts.filter((_, i) => i !== partIdx);
-      setClues(newClues);
+      if (newClues[eqIdx]) {
+        newClues[eqIdx].parts = newClues[eqIdx].parts.filter((_, i) => i !== partIdx);
+        setClues(newClues);
+      }
     } else {
       setTarget({ ...target, parts: target.parts.filter((_, i) => i !== partIdx) });
     }
@@ -99,40 +115,87 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
     // 2. Generate Clues
     const newClues: Equation[] = [];
     const ops = difficulty <= 2 ? ['+', '-'] : ['+', '-', '*', '/'];
+    const numClues = Math.min(symbolKeys.length, MAX_CLUES);
 
-    symbolKeys.forEach((key, idx) => {
+    for (let i = 0; i < numClues; i++) {
       const parts: EquationPart[] = [];
       let result = 0;
+      const key = symbolKeys[i];
+      if (!key) continue;
 
-      if (idx === 0 || Math.random() > 0.5) {
-        // Simple equation: Symbol + Symbol or Symbol + Number
-        if (Math.random() > 0.5) {
-          parts.push({ type: 'symbol', value: key }, { type: 'operator', value: '+' }, { type: 'symbol', value: key });
-          result = secretValues[key] + secretValues[key];
+      if (i === numClues - 1 && symbolKeys.length > numClues) {
+        // Last clue slot, but more symbols remain (e.g. 5 symbols, 4 clues)
+        // Combine remaining symbols into this clue
+        const remainingKeys = symbolKeys.slice(i);
+        const firstKey = remainingKeys[0];
+        const secondKey = remainingKeys[1];
+        if (!firstKey || !secondKey) continue;
+
+        const op = ops[Math.floor(Math.random() * ops.length)] || '+';
+
+        // Build: Sym4 op Sym5
+        parts.push({ type: 'symbol', value: firstKey }, { type: 'operator', value: op }, { type: 'symbol', value: secondKey });
+
+        switch (op) {
+          case '+': result = (secretValues[firstKey] || 0) + (secretValues[secondKey] || 0); break;
+          case '-': result = (secretValues[firstKey] || 0) - (secretValues[secondKey] || 0); break;
+          case '*': result = (secretValues[firstKey] || 0) * (secretValues[secondKey] || 0); break;
+          case '/':
+            secretValues[firstKey] = (secretValues[secondKey] || 1) * (Math.floor(Math.random() * 5) + 1);
+            result = secretValues[firstKey] / (secretValues[secondKey] || 1);
+            break;
+        }
+      } else if (i === 0 || Math.random() > 0.5) {
+        // Simple equation or Number Link
+        const canUseNumber = difficulty < 4;
+
+        if (!canUseNumber || Math.random() > 0.5) {
+          // Use another symbol instead of self-addition or number
+          const otherKey = symbolKeys[(i + 1) % symbolKeys.length];
+          if (otherKey && otherKey !== key) {
+            const op = ops[Math.floor(Math.random() * ops.length)] || '+';
+            parts.push({ type: 'symbol', value: key }, { type: 'operator', value: op }, { type: 'symbol', value: otherKey });
+
+            switch (op) {
+              case '+': result = (secretValues[key] || 0) + (secretValues[otherKey] || 0); break;
+              case '-': result = (secretValues[key] || 0) - (secretValues[otherKey] || 0); break;
+              case '*': result = (secretValues[key] || 0) * (secretValues[otherKey] || 0); break;
+              case '/':
+                secretValues[key] = (secretValues[otherKey] || 1) * (Math.floor(Math.random() * 5) + 1);
+                result = secretValues[key] / (secretValues[otherKey] || 1);
+                break;
+            }
+          } else {
+            // Fallback to number if no other symbol is available (unlikely)
+            const num = Math.floor(Math.random() * 10) + 1;
+            parts.push({ type: 'symbol', value: key }, { type: 'operator', value: '+' }, { type: 'number', value: num });
+            result = (secretValues[key] || 0) + num;
+          }
         } else {
+          // Use Number (Beginner - Expert)
           const num = Math.floor(Math.random() * 10) + 1;
           parts.push({ type: 'symbol', value: key }, { type: 'operator', value: '+' }, { type: 'number', value: num });
-          result = secretValues[key] + num;
+          result = (secretValues[key] || 0) + num;
         }
       } else {
-        // Compound equation: Symbol1 [op] Symbol2
-        const prevKey = symbolKeys[idx - 1];
-        const op = ops[Math.floor(Math.random() * ops.length)];
+        // Compound equation: Symbol1 [op] Symbol2 (link to previous)
+        const prevKey = symbolKeys[i - 1];
+        if (!prevKey) continue;
+        const op = ops[Math.floor(Math.random() * ops.length)] || '+';
         parts.push({ type: 'symbol', value: key }, { type: 'operator', value: op }, { type: 'symbol', value: prevKey });
 
         switch (op) {
-          case '+': result = secretValues[key] + secretValues[prevKey]; break;
-          case '-': result = secretValues[key] - secretValues[prevKey]; break;
-          case '*': result = secretValues[key] * secretValues[prevKey]; break;
+          case '+': result = (secretValues[key] || 0) + (secretValues[prevKey] || 0); break;
+          case '-': result = (secretValues[key] || 0) - (secretValues[prevKey] || 0); break;
+          case '*': result = (secretValues[key] || 0) * (secretValues[prevKey] || 0); break;
           case '/':
-            // Ensure divisible for cleaner puzzles
-            secretValues[key] = secretValues[prevKey] * (Math.floor(Math.random() * 5) + 1);
-            result = secretValues[key] / secretValues[prevKey];
+            secretValues[key] = (secretValues[prevKey] || 1) * (Math.floor(Math.random() * 5) + 1);
+            result = secretValues[key] / (secretValues[prevKey] || 1);
             break;
         }
       }
       newClues.push({ parts, result });
-    });
+    }
 
     // 3. Generate Target
     const targetParts: EquationPart[] = [];
@@ -282,7 +345,17 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
             {DIFFICULTIES.map(d => (
               <button
                 key={d.val}
-                onClick={() => setDifficulty(d.val)}
+                onClick={() => {
+                  setDifficulty(d.val);
+                  // Prune symbols if needed
+                  const limit = getSymbolLimit(d.val);
+                  const currentSymbols = Object.keys(symbols);
+                  if (currentSymbols.length > limit) {
+                    const newSyms = { ...symbols };
+                    currentSymbols.slice(limit).forEach(key => delete newSyms[key]);
+                    setSymbols(newSyms);
+                  }
+                }}
                 className={`flex-1 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all border ${difficulty === d.val
                   ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/20'
                   : 'bg-slate-800 border-white/5 text-slate-500 hover:border-white/20'
@@ -328,24 +401,28 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
                 </div>
               </div>
             ))}
-            <button
-              onClick={() => {
-                const newKey = `sym${Object.keys(symbols).length + 1}`;
-                setSymbols({ ...symbols, [newKey]: EMOJI_OPTIONS[Object.keys(symbols).length % EMOJI_OPTIONS.length] });
-              }}
-              className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-500 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
-            >
-              <Plus className="text-slate-500" />
-            </button>
+            {Object.keys(symbols).length < getSymbolLimit(difficulty) && difficulty > 1 && (
+              <button
+                onClick={() => {
+                  const newKey = `sym${Object.keys(symbols).length + 1}`;
+                  setSymbols({ ...symbols, [newKey]: EMOJI_OPTIONS[Object.keys(symbols).length % EMOJI_OPTIONS.length] });
+                }}
+                className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-500 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
+              >
+                <Plus className="text-slate-500" />
+              </button>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">2. CLUES</h3>
-            <button onClick={addClue} className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20 hover:bg-indigo-500/20">
-              ADD CLUE
-            </button>
+            {clues.length < MAX_CLUES && (
+              <button onClick={addClue} className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20 hover:bg-indigo-500/20">
+                ADD CLUE
+              </button>
+            )}
           </div>
           {clues.map((clue, i) => <EquationBuilder key={i} eq={clue} idx={i} type="clue" />)}
         </div>

@@ -19,9 +19,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     <div className="h-full max-h-[600px] w-full max-w-[800px] mx-auto flex flex-col items-center justify-between px-4 py-4 gap-6">
       <div className="flex justify-between text-center space-y-4">
         <div className="flex justify-center gap-6 mb-2">
-          <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '0s' }}>🤖</span>
-          <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '0.5s' }}>📟</span>
-          <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '1s' }}>🔋</span>
+          <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '0s' }}>🔥</span>
+          <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '0.5s' }}>💧</span>
+          <span className="text-4xl md:text-5xl lg:text-6xl float-animation" style={{ animationDelay: '1s' }}>❤️</span>
         </div>
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-outfit font-black tracking-tighter bg-gradient-to-r from-indigo-400 via-white to-purple-400 bg-clip-text text-transparent uppercase text-center leading-tight">
           SymboLogik
