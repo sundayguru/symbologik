@@ -3,16 +3,10 @@ import React from 'react';
 import { requestExpandedMode } from '@devvit/web/client';
 
 interface WelcomeScreenProps {
-  onOpenChallenges: () => void;
-  onOpenCreator: () => void;
-  onOpenLibrary: () => void;
   onOpenLeaderboard: () => void;
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
-  onOpenChallenges,
-  onOpenCreator,
-  onOpenLibrary,
   onOpenLeaderboard
 }) => {
   return (

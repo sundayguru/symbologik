@@ -1,8 +1,8 @@
 
 import React, { useEffect } from 'react';
-import { Puzzle, PuzzleStats } from '../types';
+import { GameState, Puzzle, PuzzleStats } from '../types';
 import EquationDisplay from './EquationDisplay';
-import { Bolt, ChevronLeft, Search, User, Globe, Trophy } from 'lucide-react';
+import { Bolt, Search, User, Globe, Trophy } from 'lucide-react';
 
 interface GameInterfaceProps {
   puzzle: Puzzle;
@@ -10,13 +10,11 @@ interface GameInterfaceProps {
   score: number;
   userInput: string;
   attempts: number;
-  status: string;
+  status: GameState['status'];
   globalStats: Record<string, PuzzleStats>;
   onInput: (val: string) => void;
   onClear: () => void;
-  onDelete: () => void;
   onSubmit: () => void;
-  onBack: () => void;
 }
 
 
@@ -30,9 +28,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({
   globalStats,
   onInput,
   onClear,
-  onDelete,
   onSubmit,
-  onBack
 }) => {
   const currentStats = globalStats && puzzle ? globalStats[puzzle.id] : null;
 
@@ -52,15 +48,6 @@ const GameInterface: React.FC<GameInterfaceProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [status, onSubmit, onClear]);
-
-  // Handler for direct input changes from the text field
-  const handleInputChange = (val: string) => {
-    // We update the state by essentially replacing it since it's a direct input now
-    // But the hook expectes 'onInput' to append. Let's provide a way to set it directly 
-    // or simulate backspace/input logic. For simplicity, we'll treat 'onInput' as 
-    // the source of truth from the hook and allow standard typing.
-    onInput(val.slice(-1) === userInput.slice(-1) ? "" : val);
-  };
 
   return (
     <div className="min-h-screen flex flex-col max-w-xl mx-auto px-4 py-2 relative">
@@ -95,7 +82,7 @@ const GameInterface: React.FC<GameInterfaceProps> = ({
                 symbols={puzzle.symbols}
                 puzzle={puzzle}
                 globalStats={globalStats}
-                state={{ puzzle, currentLevel, score, userInput, attempts, status } as any}
+                state={{ puzzle, currentLevel, score, userInput, attempts, status }}
               />
             ))}
 
@@ -118,13 +105,13 @@ const GameInterface: React.FC<GameInterfaceProps> = ({
               userAnswer={userInput}
               puzzle={puzzle}
               globalStats={globalStats}
-              state={{ puzzle, currentLevel, score, userInput, attempts, status } as any}
+              state={{ puzzle, currentLevel, score, userInput, attempts, status }}
               onInputChange={(val) => {
                 // Filter to allow only numbers, dot, and minus
-                const filtered = val.replace(/[^0-9.\-]/g, '');
+                const filtered = val.replace(/[^0-9.-]/g, '');
                 // Clear the state and set it to the new filtered value
                 onClear();
-                for (let char of filtered) onInput(char);
+                for (const char of filtered) onInput(char);
               }}
             />
 

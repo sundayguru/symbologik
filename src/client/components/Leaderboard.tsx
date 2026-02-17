@@ -27,7 +27,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ onBack }) => {
       }
     };
 
-    fetchLeaderboard();
+    void fetchLeaderboard();
   }, []);
 
   if (loading) {

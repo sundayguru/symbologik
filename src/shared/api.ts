@@ -1,4 +1,4 @@
-import { Puzzle, PuzzleStats, LeaderboardEntry } from '../client/types';
+import { Puzzle, PuzzleStats, LeaderboardEntry } from './types';
 
 export type UpdateStatsRequest = {
   type: 'attempt' | 'solve';

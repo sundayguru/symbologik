@@ -12,7 +12,7 @@ interface EquationDisplayProps {
   onInputChange?: (val: string) => void;
   puzzle?: Puzzle;
   globalStats?: Record<string, PuzzleStats>;
-  state?: GameState;
+  state?: Partial<GameState>;
 }
 
 const EquationDisplay: React.FC<EquationDisplayProps> = ({
@@ -25,7 +25,7 @@ const EquationDisplay: React.FC<EquationDisplayProps> = ({
   globalStats,
   state
 }) => {
-  const isSolved = state?.status === 'correct' || (puzzle && globalStats && globalStats[puzzle.id]?.userSolved && globalStats[puzzle.id].userSolved > 0);
+  const isSolved = state?.status === 'correct' || (puzzle && globalStats && globalStats[puzzle.id]?.userSolved && (globalStats[puzzle.id]?.userSolved ?? 0) > 0);
 
   return (
     <div className={`flex items-center justify-center gap-1.5 p-1 rounded-xl glass transition-all hover:scale-[1.01] ${isTarget ? 'border border-indigo-500/50 bg-indigo-500/10 shadow-md shadow-indigo-500/10' : ''}`}>

@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { GameState, Puzzle, PuzzleStats } from '../types';
-import { getPuzzle } from '../services/puzzleService';
 
 import { InitResponse, CreatePuzzleResponse, UpdateStatsRequest, StatsResponse, SubmitScoreRequest, LeaderboardResponse } from '../../shared/api';
 
@@ -32,6 +31,7 @@ export const useGameLogic = (creator?: boolean) => {
         const data: InitResponse = await response.json();
         
         if (data.puzzle) {
+
           setState(prev => ({
             ...prev,
             puzzle: data.puzzle!,
@@ -53,25 +53,28 @@ export const useGameLogic = (creator?: boolean) => {
       }
     };
 
-    init();
+    void init();
 
     const savedSolved = localStorage.getItem('symbologic_solved');
     if (savedSolved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(prev => ({ ...prev, solvedLevels: JSON.parse(savedSolved) }));
     }
 
     const savedCustom = localStorage.getItem('symbologic_crafts');
     if (savedCustom) {
+
       setCustomPuzzles(JSON.parse(savedCustom));
     }
   }, []);
 
   const updateGlobalStats = useCallback(async (type: 'attempt' | 'solve') => {
+    if (!state.puzzle) return;
     try {
       const response = await fetch('/api/stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({  type } as UpdateStatsRequest),
+        body: JSON.stringify({ type } as UpdateStatsRequest),
       });
 
       if (response.ok) {
@@ -84,7 +87,7 @@ export const useGameLogic = (creator?: boolean) => {
     } catch (error) {
       console.error('Failed to update stats:', error);
     }
-  }, [state.puzzle?.id]);
+  }, [state.puzzle]);
 
 
   const submitScore = useCallback(async (score: number) => {
@@ -112,33 +115,8 @@ export const useGameLogic = (creator?: boolean) => {
     return [];
   }, []);
 
-  const saveScoreToLeaderboard = useCallback((score: number) => {
-    const name = prompt("Matrix Complete! Enter your Architect ID for the Hall of Logic:", "PLAYER_" + Math.floor(Math.random() * 1000));
-    if (!name) return;
-
-    submitScore(score);
-  }, [submitScore]);
 
 
-  const loadLevel = useCallback(async (level: number) => {
-    setState(prev => ({ 
-      ...prev, 
-      isLoading: true, 
-      status: 'playing', 
-      userInput: '', 
-      attempts: 0, 
-      currentLevel: level
-    }));
-    
-    const puzzle = await getPuzzle(level);
-    
-    if (puzzle) {
-      setState(prev => ({ ...prev, puzzle, isLoading: false }));
-      updateGlobalStats('attempt');
-    } else {
-      setState(prev => ({ ...prev, isLoading: false, status: 'gameover' }));
-    }
-  }, [updateGlobalStats]);
 
   const handleInput = useCallback((val: string) => {
     setState(prev => {
@@ -175,10 +153,10 @@ export const useGameLogic = (creator?: boolean) => {
         
         const newSolved = Array.from(new Set([...prev.solvedLevels, prev.currentLevel]));
         localStorage.setItem('symbologic_solved', JSON.stringify(newSolved));
-        updateGlobalStats('solve');
+        void updateGlobalStats('solve');
 
         // Automatically submit to leaderboard
-        submitScore(pointsEarned);
+        void submitScore(pointsEarned);
 
         return {
           ...prev,
@@ -189,7 +167,7 @@ export const useGameLogic = (creator?: boolean) => {
         };
       } else {
 
-        updateGlobalStats('attempt');
+        void updateGlobalStats('attempt');
         // Side effect: timer to clear wrong state
         setTimeout(() => {
           setState(s => s.status === 'wrong' ? { ...s, status: 'playing', userInput: '' } : s);
@@ -202,7 +180,7 @@ export const useGameLogic = (creator?: boolean) => {
         };
       }
     });
-  }, [updateGlobalStats, saveScoreToLeaderboard]);
+  }, [updateGlobalStats, submitScore]);
 
   const backToChallenges = useCallback(() => {
     setState(prev => ({ ...prev, status: 'playing',}));
@@ -243,7 +221,7 @@ export const useGameLogic = (creator?: boolean) => {
       attempts: 0,
       isLoading: false
     }));
-    updateGlobalStats('attempt');
+    void updateGlobalStats('attempt');
   }, [updateGlobalStats]);
 
   const handleCreatePuzzle = useCallback(async (puzzle: Puzzle): Promise<CreatePuzzleResponse> => {
@@ -267,7 +245,6 @@ export const useGameLogic = (creator?: boolean) => {
     globalStats,
     customPuzzles,
     handlers: {
-      loadLevel,
       handleInput,
       handleDelete,
       handleClear,

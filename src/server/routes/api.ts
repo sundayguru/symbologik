@@ -19,7 +19,7 @@ type ErrorResponse = {
 };
 
 export const api = new Hono();
-const DIFFICULTY_LABELS = {
+const DIFFICULTY_LABELS: Record<number, string> = {
   1: 'Beginner',
   2: 'Apprentice',
   3: 'Expert',

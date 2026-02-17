@@ -2,18 +2,16 @@
 import React from 'react';
 import { useGameLogic } from './hooks/useGameLogic';
 import WelcomeScreen from './components/WelcomeScreen';
-import ChallengeMap from './components/ChallengeMap';
 import GameInterface from './components/GameInterface';
 import SuccessModal from './components/SuccessModal';
 import Leaderboard from './components/Leaderboard';
-import PuzzleLibrary from './components/PuzzleLibrary';
 import PuzzleCreator from './components/PuzzleCreator';
 
 type SymbologikProps = {
   creator?: boolean;
 }
 const Symbologik: React.FC<SymbologikProps> = ({ creator }) => {
-  const { state, globalStats, customPuzzles, handlers } = useGameLogic(creator);
+  const { state, globalStats, handlers } = useGameLogic(creator);
 
   if (state.isLoading) {
     return (
@@ -35,9 +33,6 @@ const Symbologik: React.FC<SymbologikProps> = ({ creator }) => {
     case 'welcome':
       return (
         <WelcomeScreen
-          onOpenChallenges={handlers.handleOpenChallenges}
-          onOpenCreator={handlers.handleOpenCreator}
-          onOpenLibrary={handlers.handleOpenLibrary}
           onOpenLeaderboard={handlers.handleOpenLeaderboard}
         />
       );
@@ -46,21 +41,6 @@ const Symbologik: React.FC<SymbologikProps> = ({ creator }) => {
       return (
         <PuzzleCreator onCreate={handlers.handleCreatePuzzle} />
       );
-
-    case 'challenges':
-      return (
-        <ChallengeMap
-          solvedLevels={state.solvedLevels}
-          globalStats={globalStats}
-          customPuzzles={customPuzzles}
-          onLoadLevel={handlers.loadLevel}
-          onPlayCustomPuzzle={handlers.handlePlayCustomPuzzle}
-          onBack={handlers.resetGame}
-        />
-      );
-
-    case 'library':
-      return <PuzzleLibrary onPlay={handlers.handlePlayCustomPuzzle} onBack={handlers.resetGame} />;
 
     case 'leaderboard':
       return <Leaderboard onBack={handlers.resetGame} />;
@@ -82,9 +62,7 @@ const Symbologik: React.FC<SymbologikProps> = ({ creator }) => {
             onInput={handlers.handleInput}
 
             onClear={handlers.handleClear}
-            onDelete={handlers.handleDelete}
             onSubmit={handlers.handleSubmit}
-            onBack={handlers.backToChallenges}
           />
           {state.status === 'correct' && (
             <SuccessModal

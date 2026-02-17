@@ -17,9 +17,93 @@ const DIFFICULTIES = [
   { val: 5, label: 'Legend' },
 ];
 
+import { CreatePuzzleResponse } from '../../shared/api';
+
 interface PuzzleCreatorProps {
-  onCreate?: (puzzle: Puzzle) => Promise<{ url: string }>;
+  onCreate?: (puzzle: Puzzle) => Promise<CreatePuzzleResponse>;
 }
+
+
+interface EquationBuilderProps {
+  eq: Equation;
+  idx: number;
+  eqType: 'clue' | 'target';
+  symbols: Record<string, string>;
+  updatePart: (eqType: 'clue' | 'target', eqIdx: number, partIdx: number, val: string | number) => void;
+  removePart: (eqType: 'clue' | 'target', eqIdx: number, partIdx: number) => void;
+  addPart: (eqType: 'clue' | 'target', eqIdx: number, partType: EquationPart['type']) => void;
+  updateClueResult: (index: number, val: string) => void;
+  removeClue: (index: number) => void;
+}
+
+const EquationBuilder: React.FC<EquationBuilderProps> = ({ eq, idx, eqType, symbols, updatePart, removePart, addPart, updateClueResult, removeClue }) => (
+  <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5 space-y-3">
+    <div className="flex flex-wrap items-center gap-2">
+      {eq.parts.map((part, pIdx) => (
+        <div key={pIdx} className="group relative flex items-center bg-slate-700/50 p-1.5 rounded-lg border border-white/10">
+          {part.type === 'symbol' && (
+            <select
+              value={part.value}
+              onChange={(e) => updatePart(eqType, idx, pIdx, e.target.value)}
+              className="bg-transparent text-xl appearance-none cursor-pointer focus:outline-none"
+            >
+              {Object.keys(symbols).map(s => <option key={s} value={s}>{symbols[s]}</option>)}
+            </select>
+          )}
+          {part.type === 'operator' && (
+            <select
+              value={part.value}
+              onChange={(e) => updatePart(eqType, idx, pIdx, e.target.value)}
+              className="bg-transparent font-bold text-lg appearance-none cursor-pointer focus:outline-none px-1"
+            >
+              {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          )}
+          {part.type === 'number' && (
+            <input
+              type="number"
+              value={part.value}
+              onChange={(e) => updatePart(eqType, idx, pIdx, parseInt(e.target.value) || 0)}
+              className="w-12 bg-transparent text-center font-bold focus:outline-none"
+            />
+          )}
+          <button
+            onClick={() => removePart(eqType, idx, pIdx)}
+            className="ml-1 text-[10px] text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <X className="text-rose-400" />
+          </button>
+        </div>
+      ))}
+
+      <div className="flex gap-1 ml-auto">
+        <button onClick={() => addPart(eqType, idx, 'symbol')} className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs hover:bg-indigo-500/40" title="Add Symbol">S</button>
+        <button onClick={() => addPart(eqType, idx, 'operator')} className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 text-xs hover:bg-purple-500/40" title="Add Operator">Op</button>
+        <button onClick={() => addPart(eqType, idx, 'number')} className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs hover:bg-emerald-500/40" title="Add Number">#</button>
+      </div>
+    </div>
+
+    <div className="flex items-center gap-2 border-t border-white/5 pt-2 mt-2">
+      <span className="text-slate-500 font-bold">=</span>
+      {eqType === 'clue' ? (
+        <input
+          type="number"
+          value={eq.result || 0}
+          onChange={(e) => updateClueResult(idx, e.target.value)}
+          className="bg-emerald-500/10 text-emerald-400 font-bold px-3 py-1 rounded-lg w-20 focus:outline-none text-center"
+        />
+      ) : (
+        <span className="text-indigo-400 font-bold px-3 py-1 rounded-lg bg-indigo-500/10 border border-dashed border-indigo-500/30">?</span>
+      )}
+      {eqType === 'clue' && (
+        <button onClick={() => removeClue(idx)} className="ml-auto text-rose-500 hover:text-rose-400 p-2">
+          <Trash className="text-rose-400" />
+        </button>
+      )}
+    </div>
+  </div>
+);
+
 
 const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
   const [puzzleName, setPuzzleName] = useState<string>('');
@@ -59,16 +143,19 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
 
   const updateClueResult = (index: number, val: string) => {
     const newClues = [...clues];
-    newClues[index].result = parseFloat(val) || 0;
-    setClues(newClues);
+    if (newClues[index]) {
+      newClues[index].result = parseFloat(val) || 0;
+      setClues(newClues);
+    }
   };
 
   const addPart = (eqType: 'clue' | 'target', index: number, partType: EquationPart['type']) => {
-    const defaultVal = partType === 'symbol' ? Object.keys(symbols)[0] : partType === 'operator' ? '+' : 1;
+    const defaultVal: string | number = partType === 'symbol' ? (Object.keys(symbols)[0] || 'apple') : partType === 'operator' ? '+' : 1;
     if (eqType === 'clue') {
       const newClues = [...clues];
-      if (newClues[index]) {
-        newClues[index].parts.push({ type: partType, value: defaultVal });
+      const clue = newClues[index];
+      if (clue) {
+        clue.parts.push({ type: partType, value: defaultVal });
         setClues(newClues);
       }
     } else {
@@ -85,8 +172,10 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
       }
     } else {
       const newParts = [...target.parts];
-      newParts[partIdx].value = val;
-      setTarget({ ...target, parts: newParts });
+      if (newParts[partIdx]) {
+        newParts[partIdx].value = val;
+        setTarget({ ...target, parts: newParts });
+      }
     }
   };
 
@@ -200,15 +289,16 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
     // 3. Generate Target
     const targetParts: EquationPart[] = [];
     let targetResult = 0;
-    const randomSym = symbolKeys[Math.floor(Math.random() * symbolKeys.length)];
-    const randomSym2 = symbolKeys[Math.floor(Math.random() * symbolKeys.length)];
+
+    const randomSym = symbolKeys[Math.floor(Math.random() * symbolKeys.length)] || symbolKeys[0] || 'apple';
+    const randomSym2 = symbolKeys[Math.floor(Math.random() * symbolKeys.length)] || symbolKeys[0] || 'apple';
 
     if (difficulty >= 3) {
       targetParts.push({ type: 'symbol', value: randomSym }, { type: 'operator', value: '*' }, { type: 'symbol', value: randomSym2 });
-      targetResult = secretValues[randomSym] * secretValues[randomSym2];
+      targetResult = (secretValues[randomSym] || 0) * (secretValues[randomSym2] || 0);
     } else {
       targetParts.push({ type: 'symbol', value: randomSym }, { type: 'operator', value: '+' }, { type: 'symbol', value: randomSym2 });
-      targetResult = secretValues[randomSym] + secretValues[randomSym2];
+      targetResult = (secretValues[randomSym] || 0) + (secretValues[randomSym2] || 0);
     }
 
     setClues(newClues);
@@ -245,74 +335,6 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
       console.error('Failed to create puzzle:', error);
     }
   };
-
-  const EquationBuilder = ({ eq, idx, type }: { eq: Equation, idx: number, type: 'clue' | 'target', key?: React.Key }) => (
-    <div className="p-4 rounded-xl bg-slate-800/50 border border-white/5 space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {eq.parts.map((part, pIdx) => (
-          <div key={pIdx} className="group relative flex items-center bg-slate-700/50 p-1.5 rounded-lg border border-white/10">
-            {part.type === 'symbol' && (
-              <select
-                value={part.value}
-                onChange={(e) => updatePart(type, idx, pIdx, e.target.value)}
-                className="bg-transparent text-xl appearance-none cursor-pointer focus:outline-none"
-              >
-                {Object.keys(symbols).map(s => <option key={s} value={s}>{symbols[s]}</option>)}
-              </select>
-            )}
-            {part.type === 'operator' && (
-              <select
-                value={part.value}
-                onChange={(e) => updatePart(type, idx, pIdx, e.target.value)}
-                className="bg-transparent font-bold text-lg appearance-none cursor-pointer focus:outline-none px-1"
-              >
-                {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
-            )}
-            {part.type === 'number' && (
-              <input
-                type="number"
-                value={part.value}
-                onChange={(e) => updatePart(type, idx, pIdx, parseInt(e.target.value) || 0)}
-                className="w-12 bg-transparent text-center font-bold focus:outline-none"
-              />
-            )}
-            <button
-              onClick={() => removePart(type, idx, pIdx)}
-              className="ml-1 text-[10px] text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <X className="text-rose-400" />
-            </button>
-          </div>
-        ))}
-
-        <div className="flex gap-1 ml-auto">
-          <button onClick={() => addPart(type, idx, 'symbol')} className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 text-xs hover:bg-indigo-500/40" title="Add Symbol">S</button>
-          <button onClick={() => addPart(type, idx, 'operator')} className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 text-xs hover:bg-purple-500/40" title="Add Operator">Op</button>
-          <button onClick={() => addPart(type, idx, 'number')} className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs hover:bg-emerald-500/40" title="Add Number">#</button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-white/5 pt-2 mt-2">
-        <span className="text-slate-500 font-bold">=</span>
-        {type === 'clue' ? (
-          <input
-            type="number"
-            value={eq.result || 0}
-            onChange={(e) => updateClueResult(idx, e.target.value)}
-            className="bg-emerald-500/10 text-emerald-400 font-bold px-3 py-1 rounded-lg w-20 focus:outline-none text-center"
-          />
-        ) : (
-          <span className="text-indigo-400 font-bold px-3 py-1 rounded-lg bg-indigo-500/10 border border-dashed border-indigo-500/30">?</span>
-        )}
-        {type === 'clue' && (
-          <button onClick={() => removeClue(idx)} className="ml-auto text-rose-500 hover:text-rose-400 p-2">
-            <Trash className="text-rose-400" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen flex flex-col p-6 space-y-6 max-w-2xl mx-auto overflow-y-auto pb-24">
@@ -400,8 +422,8 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
             {Object.keys(symbols).length < getSymbolLimit(difficulty) && difficulty > 1 && (
               <button
                 onClick={() => {
-                  const emoji = EMOJI_OPTIONS[Object.keys(symbols).length % EMOJI_OPTIONS.length];
-                  const rawName = getEmojiName(emoji || '').toLowerCase().replace(/\s+/g, '');
+                  const emoji = EMOJI_OPTIONS[Object.keys(symbols).length % EMOJI_OPTIONS.length] || EMOJI_OPTIONS[0] || '🍎';
+                  const rawName = getEmojiName(emoji).toLowerCase().replace(/\s+/g, '');
 
                   // Ensure uniqueness
                   let newKey = rawName;
@@ -410,7 +432,10 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
                     newKey = `${rawName}${counter}`;
                     counter++;
                   }
-                  setSymbols({ ...symbols, [newKey]: emoji });
+
+                  const updatedSymbols: Record<string, string> = { ...symbols };
+                  updatedSymbols[newKey] = emoji;
+                  setSymbols(updatedSymbols);
                 }}
                 className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-500 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
               >
@@ -430,12 +455,12 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
               </button>
             )}
           </div>
-          {clues.map((clue, i) => <EquationBuilder key={i} eq={clue} idx={i} type="clue" />)}
+          {clues.map((clue, i) => <EquationBuilder key={i} eq={clue} idx={i} eqType="clue" symbols={symbols} updatePart={updatePart} removePart={removePart} addPart={addPart} updateClueResult={updateClueResult} removeClue={removeClue} />)}
         </div>
 
         <div className="space-y-4">
           <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">3. CHALLENGE</h3>
-          <EquationBuilder eq={target} idx={0} type="target" />
+          <EquationBuilder eq={target} idx={0} eqType="target" symbols={symbols} updatePart={updatePart} removePart={removePart} addPart={addPart} updateClueResult={updateClueResult} removeClue={removeClue} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/10">

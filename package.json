@@ -10,6 +10,7 @@
     "dev": "devvit playtest",
     "launch": "npm run deploy && devvit publish",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "login": "devvit login",
     "prettier": "prettier --write .",
     "test": "vitest run",
