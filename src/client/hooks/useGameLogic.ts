@@ -1,8 +1,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { GameState, Puzzle, LeaderboardEntry, PuzzleStats } from '../types';
+import { GameState, Puzzle, PuzzleStats } from '../types';
 import { getPuzzle } from '../services/puzzleService';
-import { InitResponse, CreatePuzzleResponse } from '../../shared/api';
+
+import { InitResponse, CreatePuzzleResponse, UpdateStatsRequest, StatsResponse, SubmitScoreRequest, LeaderboardResponse } from '../../shared/api';
+
+
 
 export const useGameLogic = (creator?: boolean) => {
   const [state, setState] = useState<GameState>({
@@ -15,6 +18,7 @@ export const useGameLogic = (creator?: boolean) => {
     attempts: 0,
     solvedLevels: [],
     lastPointsEarned: 0,
+    username: 'ARCHITECT'
   });
 
   const [globalStats, setGlobalStats] = useState<Record<string, PuzzleStats>>({});
@@ -32,11 +36,18 @@ export const useGameLogic = (creator?: boolean) => {
             ...prev,
             puzzle: data.puzzle!,
             status: 'playing',
-            isLoading: false
+            isLoading: false,
+            username: data.username,
+            attempts: data.stats?.userAttempts ?? 0,
           }));
+          if (data.stats) {
+            setGlobalStats(prev => ({ ...prev, [data.puzzle!.id]: data.stats! }));
+          }
         } else {
-          setState(prev => ({ ...prev, isLoading: false }));
+          setState(prev => ({ ...prev, isLoading: false, username: data.username }));
         }
+
+
       } catch (error) {
         console.error('Failed to init:', error);
       }
@@ -49,46 +60,65 @@ export const useGameLogic = (creator?: boolean) => {
       setState(prev => ({ ...prev, solvedLevels: JSON.parse(savedSolved) }));
     }
 
-    const savedStats = localStorage.getItem('symbologic_global_stats');
-    if (savedStats) {
-      setGlobalStats(JSON.parse(savedStats));
-    }
-
     const savedCustom = localStorage.getItem('symbologic_crafts');
     if (savedCustom) {
       setCustomPuzzles(JSON.parse(savedCustom));
     }
   }, []);
 
-  const updateGlobalStats = useCallback((puzzleId: string, type: 'attempt' | 'solve') => {
-    setGlobalStats(prev => {
-      const current = prev[puzzleId] || { attempts: 0, solved: 0 };
-      const next = {
-        attempts: type === 'attempt' ? current.attempts + 1 : current.attempts,
-        solved: type === 'solve' ? current.solved + 1 : current.solved
-      };
-      const updated = { ...prev, [puzzleId]: next };
-      localStorage.setItem('symbologic_global_stats', JSON.stringify(updated));
-      return updated;
-    });
+  const updateGlobalStats = useCallback(async (type: 'attempt' | 'solve') => {
+    try {
+      const response = await fetch('/api/stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({  type } as UpdateStatsRequest),
+      });
+
+      if (response.ok) {
+        const data: StatsResponse = await response.json();
+        setGlobalStats(prev => ({ ...prev, [state.puzzle!.id]: data.stats }));
+        if (type === 'attempt') {
+          setState(prev => ({ ...prev, attempts: data.stats.userAttempts }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update stats:', error);
+    }
+  }, [state.puzzle?.id]);
+
+
+  const submitScore = useCallback(async (score: number) => {
+    try {
+      await fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score } as SubmitScoreRequest),
+      });
+    } catch (error) {
+      console.error('Failed to submit score:', error);
+    }
   }, []);
 
-  const saveScoreToLeaderboard = useCallback((score: number, level: number) => {
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const response = await fetch('/api/leaderboard');
+      if (response.ok) {
+        const data: LeaderboardResponse = await response.json();
+        return data.entries;
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+    }
+    return [];
+  }, []);
+
+  const saveScoreToLeaderboard = useCallback((score: number) => {
     const name = prompt("Matrix Complete! Enter your Architect ID for the Hall of Logic:", "PLAYER_" + Math.floor(Math.random() * 1000));
     if (!name) return;
 
-    const newEntry: LeaderboardEntry = {
-      name: name.toUpperCase(),
-      score,
-      level,
-      date: new Date().toLocaleDateString()
-    };
+    submitScore(score);
+  }, [submitScore]);
 
-    const saved = localStorage.getItem('symbologic_leaderboard');
-    const entries: LeaderboardEntry[] = saved ? JSON.parse(saved) : [];
-    entries.push(newEntry);
-    localStorage.setItem('symbologic_leaderboard', JSON.stringify(entries.sort((a, b) => b.score - a.score).slice(0, 10)));
-  }, []);
 
   const loadLevel = useCallback(async (level: number) => {
     setState(prev => ({ 
@@ -104,7 +134,7 @@ export const useGameLogic = (creator?: boolean) => {
     
     if (puzzle) {
       setState(prev => ({ ...prev, puzzle, isLoading: false }));
-      updateGlobalStats(puzzle.id, 'attempt');
+      updateGlobalStats('attempt');
     } else {
       setState(prev => ({ ...prev, isLoading: false, status: 'gameover' }));
     }
@@ -145,11 +175,10 @@ export const useGameLogic = (creator?: boolean) => {
         
         const newSolved = Array.from(new Set([...prev.solvedLevels, prev.currentLevel]));
         localStorage.setItem('symbologic_solved', JSON.stringify(newSolved));
-        updateGlobalStats(prev.puzzle.id, 'solve');
+        updateGlobalStats('solve');
 
-        if (prev.currentLevel === 50 && !prev.puzzle.id.startsWith('custom-')) {
-          saveScoreToLeaderboard(newScore, prev.currentLevel);
-        }
+        // Automatically submit to leaderboard
+        submitScore(pointsEarned);
 
         return {
           ...prev,
@@ -159,7 +188,8 @@ export const useGameLogic = (creator?: boolean) => {
           lastPointsEarned: pointsEarned,
         };
       } else {
-        updateGlobalStats(prev.puzzle.id, 'attempt');
+
+        updateGlobalStats('attempt');
         // Side effect: timer to clear wrong state
         setTimeout(() => {
           setState(s => s.status === 'wrong' ? { ...s, status: 'playing', userInput: '' } : s);
@@ -175,9 +205,7 @@ export const useGameLogic = (creator?: boolean) => {
   }, [updateGlobalStats, saveScoreToLeaderboard]);
 
   const backToChallenges = useCallback(() => {
-    setState(prev => ({ ...prev, status: 'challenges', puzzle: null }));
-    const savedCustom = localStorage.getItem('symbologic_crafts');
-    if (savedCustom) setCustomPuzzles(JSON.parse(savedCustom));
+    setState(prev => ({ ...prev, status: 'playing',}));
   }, []);
 
   const resetGame = useCallback(() => {
@@ -215,7 +243,7 @@ export const useGameLogic = (creator?: boolean) => {
       attempts: 0,
       isLoading: false
     }));
-    updateGlobalStats(puzzle.id, 'attempt');
+    updateGlobalStats('attempt');
   }, [updateGlobalStats]);
 
   const handleCreatePuzzle = useCallback(async (puzzle: Puzzle): Promise<CreatePuzzleResponse> => {
@@ -252,6 +280,8 @@ export const useGameLogic = (creator?: boolean) => {
       handleOpenLeaderboard,
       handlePlayCustomPuzzle,
       handleCreatePuzzle,
+      fetchLeaderboard,
     }
+
   };
 };

@@ -6,7 +6,14 @@ import type {
   DecrementResponse,
   IncrementResponse,
   InitResponse,
+  UpdateStatsRequest,
+  StatsResponse,
+  SubmitScoreRequest,
+  LeaderboardResponse,
 } from '../../shared/api';
+import { LeaderboardEntry } from '../../client/types';
+
+
 
 type ErrorResponse = {
   status: 'error';
@@ -22,8 +29,10 @@ const DIFFICULTY_LABELS = {
   5: 'Legend',
 };
 api.get('/init', async (c) => {
-  const { postId } = context;
+  const { postId, username } = context;
 
+  console.log("postID", postId)
+  console.log("username", username)
   if (!postId) {
     console.error('API Init Error: postId not found in devvit context');
     return c.json<ErrorResponse>(
@@ -36,11 +45,33 @@ api.get('/init', async (c) => {
   }
 
   try {
-    const [count, username, puzzleData] = await Promise.all([
+    const [count, puzzleData] = await Promise.all([
       redis.get('count'),
-      reddit.getCurrentUsername(),
       redis.get(`puzzle:${postId}`),
     ]);
+
+    // Fetch stats if puzzle exists
+    let stats;
+    if (puzzleData) {
+      const globalAttemptsKey = `stats:global:attempts:${postId}`;
+      const globalSolvedKey = `stats:global:solved:${postId}`;
+      const userAttemptsKey = `stats:user:attempts:${postId}:${username}`;
+      const userSolvedKey = `stats:user:solved:${postId}:${username}`;
+
+      const [gAttempts, gSolved, uAttempts, uSolved] = await Promise.all([
+        redis.get(globalAttemptsKey),
+        redis.get(globalSolvedKey),
+        redis.get(userAttemptsKey),
+        redis.get(userSolvedKey),
+      ]);
+
+      stats = {
+        globalAttempts: gAttempts ? parseInt(gAttempts) : 0,
+        globalSolved: gSolved ? parseInt(gSolved) : 0,
+        userAttempts: uAttempts ? parseInt(uAttempts) : 0,
+        userSolved: uSolved ? parseInt(uSolved) : 0,
+      };
+    }
 
     return c.json<InitResponse>({
       type: 'init',
@@ -48,6 +79,7 @@ api.get('/init', async (c) => {
       count: count ? parseInt(count) : 0,
       username: username ?? 'anonymous',
       puzzle: puzzleData ? JSON.parse(puzzleData) : undefined,
+      stats,
     });
   } catch (error) {
     console.error(`API Init Error for post ${postId}:`, error);
@@ -61,6 +93,7 @@ api.get('/init', async (c) => {
     );
   }
 });
+
 
 api.post('/increment', async (c) => {
   const { postId } = context;
@@ -140,3 +173,110 @@ api.post('/create-puzzle', async (c) => {
     );
   }
 });
+
+api.post('/stats', async (c) => {
+  try {
+    const { type } = await c.req.json<UpdateStatsRequest>();
+    const { username, postId } = context;
+
+    if (!type) {
+      return c.json<ErrorResponse>({ status: 'error', message: 'type is required' }, 400);
+    }
+
+    const globalAttemptsKey = `stats:global:attempts:${postId}`;
+    const globalSolvedKey = `stats:global:solved:${postId}`;
+    const userAttemptsKey = `stats:user:attempts:${postId}:${username}`;
+    const userSolvedKey = `stats:user:solved:${postId}:${username}`;
+
+    if (type === 'attempt') {
+      await Promise.all([
+        redis.incrBy(globalAttemptsKey, 1),
+        redis.incrBy(userAttemptsKey, 1),
+      ]);
+    } else if (type === 'solve') {
+      await Promise.all([
+        redis.incrBy(globalAttemptsKey, 1),
+        redis.incrBy(userAttemptsKey, 1),
+        redis.incrBy(globalSolvedKey, 1),
+        redis.incrBy(userSolvedKey, 1),
+      ]);
+    }
+
+    const [gAttempts, gSolved, uAttempts, uSolved] = await Promise.all([
+      redis.get(globalAttemptsKey),
+      redis.get(globalSolvedKey),
+      redis.get(userAttemptsKey),
+      redis.get(userSolvedKey),
+    ]);
+
+
+    return c.json<StatsResponse>({
+      stats: {
+        globalAttempts: gAttempts ? parseInt(gAttempts) : 0,
+        globalSolved: gSolved ? parseInt(gSolved) : 0,
+        userAttempts: uAttempts ? parseInt(uAttempts) : 0,
+        userSolved: uSolved ? parseInt(uSolved) : 0,
+      },
+    });
+  } catch (error) {
+    console.error('Update Stats Error:', error);
+    return c.json<ErrorResponse>(
+      {
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Failed to update stats',
+      },
+      500
+    );
+  }
+});
+
+api.post('/score', async (c) => {
+  try {
+    const { score } = await c.req.json<SubmitScoreRequest>();
+    const { username } = context;
+    
+    if (!score) {
+      return c.json<ErrorResponse>({ status: 'error', message: 'score is required' }, 400);
+    }
+
+    const leaderboardKey = 'leaderboard:global';
+
+    // Increment global score
+    await redis.zIncrBy(leaderboardKey, username ?? 'unknown', score);
+    
+
+    return c.json({ status: 'success' });
+  } catch (error) {
+    console.error('Submit Score Error:', error);
+    return c.json<ErrorResponse>({ status: 'error', message: 'Failed to submit score' }, 500);
+  }
+});
+
+api.get('/leaderboard', async (c) => {
+  try {
+    const leaderboardKey = 'leaderboard:global';
+    // Get top 10 members with scores
+    const entries = await redis.zRange(leaderboardKey, 0, 9, { by: 'rank', reverse: true });
+    
+    const results: LeaderboardEntry[] = await Promise.all(
+      entries.map(async (entry) => {
+        console.log(entry, "entry");
+        const name = entry.member;
+        const score = entry.score;
+        
+        return {
+          name,
+          score,
+        };
+      })
+    );
+
+    return c.json<LeaderboardResponse>({ entries: results });
+  } catch (error) {
+    console.error('Get Leaderboard Error:', error);
+    return c.json<ErrorResponse>({ status: 'error', message: 'Failed to fetch leaderboard' }, 500);
+  }
+});
+
+
+

@@ -23,15 +23,16 @@ export interface Puzzle {
 }
 
 export interface PuzzleStats {
-  attempts: number;
-  solved: number;
+  globalAttempts: number;
+  globalSolved: number;
+  userAttempts: number;
+  userSolved: number;
 }
+
 
 export interface LeaderboardEntry {
   name: string;
   score: number;
-  date: string;
-  level: number;
 }
 
 export interface GameState {
@@ -44,4 +45,6 @@ export interface GameState {
   attempts: number;
   solvedLevels: number[];
   lastPointsEarned: number;
+  username?: string;
 }
+

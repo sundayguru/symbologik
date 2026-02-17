@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Equation } from '../types';
+import { Equation, Puzzle, PuzzleStats, GameState } from '../types';
 
 interface EquationDisplayProps {
   equation: Equation;
@@ -8,6 +7,9 @@ interface EquationDisplayProps {
   isTarget?: boolean;
   userAnswer?: string;
   onInputChange?: (val: string) => void;
+  puzzle?: Puzzle;
+  globalStats?: Record<string, PuzzleStats>;
+  state?: GameState;
 }
 
 const EquationDisplay: React.FC<EquationDisplayProps> = ({
@@ -15,8 +17,13 @@ const EquationDisplay: React.FC<EquationDisplayProps> = ({
   symbols,
   isTarget,
   userAnswer,
-  onInputChange
+  onInputChange,
+  puzzle,
+  globalStats,
+  state
 }) => {
+  const isSolved = state?.status === 'correct' || (puzzle && globalStats && globalStats[puzzle.id]?.userSolved && globalStats[puzzle.id].userSolved > 0);
+
   return (
     <div className={`flex items-center justify-center gap-1.5 p-1 rounded-xl glass transition-all hover:scale-[1.01] ${isTarget ? 'border border-indigo-500/50 bg-indigo-500/10 shadow-md shadow-indigo-500/10' : ''}`}>
       <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-center">
@@ -46,16 +53,22 @@ const EquationDisplay: React.FC<EquationDisplayProps> = ({
         <span className="text-lg md:text-xl font-bold text-slate-300">=</span>
 
         {isTarget ? (
-          <div className="relative w-20 md:w-24 h-10 md:h-12">
-            <input
-              type="text"
-              inputMode="decimal"
-              placeholder="?"
-              value={userAnswer || ''}
-              onChange={(e) => onInputChange?.(e.target.value)}
-              className="w-full h-full text-center text-xl md:text-2xl font-outfit font-bold text-indigo-300 bg-indigo-400/10 border border-dashed border-indigo-500/50 rounded-xl focus:outline-none focus:border-indigo-400 focus:bg-indigo-400/20 placeholder-slate-600 transition-all"
-            />
-          </div>
+          isSolved ? (
+            <span className="text-lg md:text-xl font-outfit font-bold text-emerald-400 bg-emerald-400/10 px-3 py-0.5 rounded-md shadow-inner">
+              {equation.result || puzzle?.answer}
+            </span>
+          ) : (
+            <div className="relative w-20 md:w-24 h-10 md:h-12">
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="?"
+                value={userAnswer || ''}
+                onChange={(e) => onInputChange?.(e.target.value)}
+                className="w-full h-full text-center text-xl md:text-2xl font-outfit font-bold text-indigo-300 bg-indigo-400/10 border border-dashed border-indigo-500/50 rounded-xl focus:outline-none focus:border-indigo-400 focus:bg-indigo-400/20 placeholder-slate-600 transition-all"
+              />
+            </div>
+          )
         ) : (
           <span className="text-lg md:text-xl font-outfit font-bold text-emerald-400 bg-emerald-400/10 px-3 py-0.5 rounded-md shadow-inner">
             {equation.result}

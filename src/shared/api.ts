@@ -1,4 +1,23 @@
-import { Puzzle } from '../client/types';
+import { Puzzle, PuzzleStats, LeaderboardEntry } from '../client/types';
+
+export type UpdateStatsRequest = {
+  type: 'attempt' | 'solve';
+};
+
+export type StatsResponse = {
+  stats: PuzzleStats;
+};
+
+export type SubmitScoreRequest = {
+  name: string;
+  score: number;
+  level: number;
+};
+
+export type LeaderboardResponse = {
+  entries: LeaderboardEntry[];
+};
+
 
 export type InitResponse = {
   type: 'init';
@@ -6,7 +25,9 @@ export type InitResponse = {
   count: number;
   username: string;
   puzzle?: Puzzle;
+  stats?: PuzzleStats;
 };
+
 
 export type CreatePuzzleRequest = {
   puzzle: Puzzle;

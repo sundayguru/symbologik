@@ -80,7 +80,9 @@ const Symbologik: React.FC<SymbologikProps> = ({ creator }) => {
             userInput={state.userInput}
             attempts={state.attempts}
             status={state.status}
+            globalStats={globalStats}
             onInput={handlers.handleInput}
+
             onClear={handlers.handleClear}
             onDelete={handlers.handleDelete}
             onSubmit={handlers.handleSubmit}
