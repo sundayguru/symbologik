@@ -44,9 +44,7 @@ const Symbologik: React.FC<SymbologikProps> = ({ creator }) => {
 
     case 'config':
       return (
-        <PuzzleCreator
-          onCreate={handlers.handleCreatePuzzle}
-        />
+        <PuzzleCreator onCreate={handlers.handleCreatePuzzle} />
       );
 
     case 'challenges':

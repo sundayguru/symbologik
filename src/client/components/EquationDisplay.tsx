@@ -1,7 +1,10 @@
 import React from 'react';
 import { Equation, Puzzle, PuzzleStats, GameState } from '../types';
 
+import { getEmojiName } from '../utils/emojiMapping';
+
 interface EquationDisplayProps {
+
   equation: Equation;
   symbols: Record<string, string>;
   isTarget?: boolean;
@@ -34,7 +37,10 @@ const EquationDisplay: React.FC<EquationDisplayProps> = ({
                 <span className="text-xl md:text-2xl float-animation drop-shadow-sm">
                   {symbols[part.value as string] || '❓'}
                 </span>
-                <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">{part.value}</span>
+                <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">
+                  {getEmojiName(symbols[part.value as string] || '')}
+                </span>
+
               </div>
             )}
             {part.type === 'operator' && (

@@ -2,12 +2,10 @@
 import React, { useState } from 'react';
 import { context, navigateTo } from '@devvit/web/client';
 import { Puzzle, Equation, EquationPart } from '../types';
-import { ChevronLeft, Play, Plus, Send, Trash, X } from 'lucide-react';
+import { Plus, Send, Trash, X } from 'lucide-react';
 
-interface PuzzleCreatorProps {
-  onSave: (puzzle: Puzzle) => void;
-  onCancel: () => void;
-}
+
+import { getEmojiName } from '../utils/emojiMapping';
 
 const EMOJI_OPTIONS = ['🍎', '🍌', '🍒', '🥑', '🥦', '🍕', '🚀', '⭐', '💎', '🤖', '👻', '🔥', '💧', '🌍', '❤️'];
 const OPERATORS = ['+', '-', '*', '/'];
@@ -27,17 +25,18 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
   const [puzzleName, setPuzzleName] = useState<string>('');
   const [difficulty, setDifficulty] = useState<number>(3);
   const [symbols, setSymbols] = useState<Record<string, string>>({
-    sym1: '🍎',
-    sym2: '⭐',
+    apple: '🍎',
+    star: '⭐',
   });
   const [clues, setClues] = useState<Equation[]>([
-    { parts: [{ type: 'symbol', value: 'sym1' }, { type: 'operator', value: '+' }, { type: 'symbol', value: 'sym1' }], result: 10 }
+    { parts: [{ type: 'symbol', value: 'apple' }, { type: 'operator', value: '+' }, { type: 'symbol', value: 'apple' }], result: 10 }
   ]);
   const [target, setTarget] = useState<Equation>({
-    parts: [{ type: 'symbol', value: 'sym1' }, { type: 'operator', value: '+' }, { type: 'number', value: 5 }]
+    parts: [{ type: 'symbol', value: 'apple' }, { type: 'operator', value: '+' }, { type: 'number', value: 5 }]
   });
+
   const [answer, setAnswer] = useState<string>('10');
-  const [explanation, setExplanation] = useState<string>('Calculated by the architect.');
+  const [explanation, setExplanation] = useState<string>('');
 
   const getSymbolLimit = (diff: number) => {
     if (diff === 1) return 2;
@@ -385,7 +384,9 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
                   </select>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">{key}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">{getEmojiName(symbols[key] || '')}</span>
+
+
                   {Object.keys(symbols).length > 1 && (
                     <button
                       onClick={() => {
@@ -404,11 +405,21 @@ const PuzzleCreator: React.FC<PuzzleCreatorProps> = ({ onCreate }) => {
             {Object.keys(symbols).length < getSymbolLimit(difficulty) && difficulty > 1 && (
               <button
                 onClick={() => {
-                  const newKey = `sym${Object.keys(symbols).length + 1}`;
-                  setSymbols({ ...symbols, [newKey]: EMOJI_OPTIONS[Object.keys(symbols).length % EMOJI_OPTIONS.length] });
+                  const emoji = EMOJI_OPTIONS[Object.keys(symbols).length % EMOJI_OPTIONS.length];
+                  const rawName = getEmojiName(emoji || '').toLowerCase().replace(/\s+/g, '');
+
+                  // Ensure uniqueness
+                  let newKey = rawName;
+                  let counter = 1;
+                  while (symbols[newKey]) {
+                    newKey = `${rawName}${counter}`;
+                    counter++;
+                  }
+                  setSymbols({ ...symbols, [newKey]: emoji });
                 }}
                 className="w-14 h-14 rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-500 hover:border-indigo-500 hover:text-indigo-400 transition-colors"
               >
+
                 <Plus className="text-slate-500" />
               </button>
             )}
