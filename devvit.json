@@ -31,6 +31,13 @@
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install"
   },
+  "permissions": {
+    "reddit": {
+      "asUser": [
+        "SUBMIT_POST"
+      ]
+    }
+  },
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build"

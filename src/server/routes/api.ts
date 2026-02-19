@@ -101,6 +101,10 @@ api.post('/create-puzzle', async (c) => {
 
     // 1. Create the Reddit post
     const post = await reddit.submitCustomPost({
+      runAs: 'USER',
+      userGeneratedContent: {
+        text: ''
+      },
       title: `Can you solve this ${DIFFICULTY_LABELS[puzzle.difficulty]} level puzzle that u/${context.username} created?`,
       subredditName,
     });
